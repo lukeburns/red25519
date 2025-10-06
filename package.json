@@ -1,0 +1,19 @@
+{
+  "name": "red25519",
+  "version": "0.1.0",
+  "description": "",
+  "license": "MIT",
+  "author": "Luke Burns (@lukeburns)",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1"
+  },
+  "devDependencies": {
+    "brittle": "^3.19.0"
+  }
+}
