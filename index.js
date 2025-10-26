@@ -12,6 +12,47 @@ function hashDomainToScalar(...msgs) {
     return modN_LE(sha512(concatBytes(...msgs)))
 }
 
+exports.upgrade = function (ed25519SecretKey) {
+  // upgrade ed25519 secret key to ristretto255 key pair
+  // ed25519 key is a seed which is used to generate a private key via a clamping procedure
+  // we are replacing this with a ristretto255 secret which is a true scalar and returning the canonical ristretto255 public key, which may differ from the ed25519 public key
+  
+  // Step 1: Hash the ed25519 secret key using SHA-512 to get 64-byte digest
+  const hash = sha512(ed25519SecretKey)
+  
+  // Step 2: Split hash into two 32-byte halves
+  const h_L = hash.subarray(0, 32)  // First 32 bytes
+  const h_R = hash.subarray(32, 64) // Last 32 bytes
+  
+  // Step 3: Apply clamping procedure to h_L to get the private scalar
+  const clamped = new Uint8Array(h_L)
+  clamped[0] &= 248  // Clear the lowest three bits of the first byte
+  clamped[31] &= 127 // Clear the highest bit of the last byte
+  clamped[31] |= 64  // Set the second highest bit of the last byte
+  
+  // Step 4: Convert clamped bytes to ristretto255 private scalar
+  const privateScalar = ristretto255.Point.Fn.create(bytesToNumberLE(clamped))
+  const privateKey = b4a.from(ristretto255.Point.Fn.toBytes(privateScalar))
+  
+  // Step 5: Generate ristretto255 point and convert to ed25519 public key
+  const ristrettoPoint = ristretto255.Point.BASE.multiply(privateScalar)
+  const ed25519Point = new ed25519.Point(ristrettoPoint.ep.X, ristrettoPoint.ep.Y, ristrettoPoint.ep.Z, ristrettoPoint.ep.T)
+  const ed25519PublicKey = ed25519Point.toBytes()
+
+  // Step 6: Create key pair structure
+  const slab = b4a.allocUnsafeSlow(32 + 64)
+  const publicKeyBuffer = slab.subarray(0, 32)
+  const secretKeyBuffer = slab.subarray(32)
+  publicKeyBuffer.set(ed25519PublicKey)
+  secretKeyBuffer.set(privateKey, 0, 32)
+  secretKeyBuffer.set(publicKeyBuffer, 32, 32)
+
+  return {
+    publicKey: publicKeyBuffer, // edwards curve public key
+    secretKey: secretKeyBuffer // ristretto255 private key
+  }
+}
+
 exports.keyPair = function (seed) {
   let privateKey
 

@@ -1,7 +1,6 @@
-# red25519: ristretto-based ed25519 signatures
+# red25519: ed25519 signatures with ristretto
 
-* Ed25519 compatible signatures
-* Ristretto-based key derivation
+ed25519 compatible signatures with the flexibility of ristretto-based key derivation
 
 ## Installation
 

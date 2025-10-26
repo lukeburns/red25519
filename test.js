@@ -2,6 +2,18 @@ const test = require('brittle')
 const b4a = require('b4a')
 const crypto = require('./')
 
+test('upgrade', function (t) {
+  const secret = b4a.from('3cadb716898ad406951d5d31a1a3f66b0697c64a7ddae42685f13e2bb6971da06d54e8f0fc2d9d640619955d306426df90510e6e0ead6311b302963eee9bd5ff', 'hex')
+  console.log(secret.toString('hex'))
+  const keyPair = crypto.upgrade(secret)
+  console.log(keyPair.secretKey.toString('hex'))
+  t.is(keyPair.publicKey.length, 32)
+  t.is(keyPair.secretKey.length, 64)
+  t.is(keyPair.publicKey.buffer.byteLength, 96, 'small slab')
+  t.is(keyPair.publicKey.buffer, keyPair.secretKey.buffer, 'public and seret key share the same slab')
+  t.ok(crypto.validateKeyPair({ publicKey: keyPair.publicKey, secretKey: keyPair.secretKey }))
+})
+
 test('randomBytes', function (t) {
   const buffer = crypto.randomBytes(100)
   t.ok(b4a.isBuffer(buffer))

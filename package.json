@@ -1,7 +1,7 @@
 {
   "name": "red25519",
-  "version": "0.1.0",
-  "description": "",
+  "version": "0.2.0",
+  "description": "ed25519 signatures in ristretto",
   "license": "MIT",
   "author": "Luke Burns (@lukeburns)",
   "type": "commonjs",
