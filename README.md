@@ -13,7 +13,7 @@ npm install red25519
 see `example.js`
 
 ```js
-const red25519 = require('./')
+const red25519 = require('red25519')
 const b4a = require('b4a')
 
 // Generate a hybrid ristretto/ed25519 key pair:
@@ -41,4 +41,8 @@ const bob = red25519.keyPair()
 const aliceBytes = red25519.deriveSharedSecret(alice.secretKey, bob.publicKey)
 const bobBytes = red25519.deriveSharedSecret(bob.secretKey, alice.publicKey)
 console.log(b4a.equals(aliceBytes, bobBytes)) // true
+
+// Upgrade an existing ed25519 keypair
+const upgradedKeyPair = red25519.upgrade(ed25519SecretKey)
+console.log(red25519.validateKeyPair(upgradedKeyPair)) // true
 ```
