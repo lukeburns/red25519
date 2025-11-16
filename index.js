@@ -12,34 +12,50 @@ function hashDomainToScalar(...msgs) {
     return modN_LE(sha512(concatBytes(...msgs)))
 }
 
+function normalize(ristrettoPoint) {
+  const ristrettoPointBytes = ristrettoPoint.toBytes()
+  const ristrettoPointFromBytes = ristretto255.Point.fromBytes(ristrettoPointBytes)
+  return new ed25519.Point(
+    ristrettoPointFromBytes.ep.X,
+    ristrettoPointFromBytes.ep.Y,
+    ristrettoPointFromBytes.ep.Z,
+    ristrettoPointFromBytes.ep.T
+  )
+}
+
 exports.upgrade = function (ed25519SecretKey) {
   // upgrade ed25519 secret key to ristretto255 key pair
   // ed25519 key is a seed which is used to generate a private key via a clamping procedure
   // we are replacing this with a ristretto255 secret which is a true scalar and returning the canonical ristretto255 public key, which may differ from the ed25519 public key
+  // If ed25519SecretKey is 64 bytes (seed + public key), use only the first 32 bytes (seed)
   
-  // Step 1: Hash the ed25519 secret key using SHA-512 to get 64-byte digest
-  const hash = sha512(ed25519SecretKey)
+  // Step 1: Extract seed (first 32 bytes) if secret key is 64 bytes
+  const seed = ed25519SecretKey.length === 64 ? ed25519SecretKey.subarray(0, 32) : ed25519SecretKey
   
-  // Step 2: Split hash into two 32-byte halves
+  // Step 2: Hash the ed25519 seed using SHA-512 to get 64-byte digest
+  const hash = sha512(seed)
+  
+  // Step 3: Split hash into two 32-byte halves
   const h_L = hash.subarray(0, 32)  // First 32 bytes
   const h_R = hash.subarray(32, 64) // Last 32 bytes
   
-  // Step 3: Apply clamping procedure to h_L to get the private scalar
+  // Step 4: Apply clamping procedure to h_L to get the private scalar
   const clamped = new Uint8Array(h_L)
   clamped[0] &= 248  // Clear the lowest three bits of the first byte
   clamped[31] &= 127 // Clear the highest bit of the last byte
   clamped[31] |= 64  // Set the second highest bit of the last byte
   
-  // Step 4: Convert clamped bytes to ristretto255 private scalar
+  // Step 5: Convert clamped bytes to ristretto255 private scalar
   const privateScalar = ristretto255.Point.Fn.create(bytesToNumberLE(clamped))
   const privateKey = b4a.from(ristretto255.Point.Fn.toBytes(privateScalar))
   
-  // Step 5: Generate ristretto255 point and convert to ed25519 public key
+  // Step 6: Generate ristretto255 point and convert to ed25519 public key
+  // Normalize to canonical representation (same as upgradePublicKey)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(privateScalar)
-  const ed25519Point = new ed25519.Point(ristrettoPoint.ep.X, ristrettoPoint.ep.Y, ristrettoPoint.ep.Z, ristrettoPoint.ep.T)
+  const ed25519Point = normalize(ristrettoPoint)
   const ed25519PublicKey = ed25519Point.toBytes()
 
-  // Step 6: Create key pair structure
+  // Step 7: Create key pair structure
   const slab = b4a.allocUnsafeSlow(32 + 64)
   const publicKeyBuffer = slab.subarray(0, 32)
   const secretKeyBuffer = slab.subarray(32)
@@ -51,6 +67,14 @@ exports.upgrade = function (ed25519SecretKey) {
     publicKey: publicKeyBuffer, // edwards curve public key
     secretKey: secretKeyBuffer // ristretto255 private key
   }
+}
+
+exports.upgradePublicKey = function (publicKey) {
+  const ed25519Point = ed25519.Point.fromBytes(publicKey)
+  const ristrettoPoint = new ristretto255.Point(ed25519Point)
+  const ed25519Point2 = normalize(ristrettoPoint)
+  const upgradedPublicKey = ed25519Point2.toBytes()
+  return b4a.from(upgradedPublicKey)
 }
 
 exports.keyPair = function (seed) {
@@ -69,7 +93,7 @@ exports.keyPair = function (seed) {
   // Derive public key using ristretto255
   const privateKeyScalar = ristretto255.Point.Fn.fromBytes(privateKey)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(privateKeyScalar)
-  const ed25519Point = new ed25519.Point(ristrettoPoint.ep.X, ristrettoPoint.ep.Y, ristrettoPoint.ep.Z, ristrettoPoint.ep.T)
+  const ed25519Point = normalize(ristrettoPoint)
   const ed25519PublicKey = ed25519Point.toBytes()
 
   const slab = b4a.allocUnsafeSlow(32 + 64)
@@ -92,7 +116,7 @@ exports.deriveKeyPair = function (secretKey, bytes) {
   const derivedScalar = ristretto255.Point.Fn.create(privateScalar * bytesScalar)
   const derivedBytes = ristretto255.Point.Fn.toBytes(derivedScalar)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(derivedScalar)
-  const ed25519Point = new ed25519.Point(ristrettoPoint.ep.X, ristrettoPoint.ep.Y, ristrettoPoint.ep.Z, ristrettoPoint.ep.T)
+  const ed25519Point = normalize(ristrettoPoint)
   const ed25519PublicKey = ed25519Point.toBytes()
 
   const slab = b4a.allocUnsafeSlow(32 + 64)
@@ -113,8 +137,8 @@ exports.derivePublicKey = function (publicKey, bytes) {
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
   const bytesScalar = ristretto255_hasher.hashToScalar(bytes)
   const derivedPoint = ristrettoPoint.multiply(bytesScalar)
-  const ed25519DerivedPoint = new ed25519.Point(derivedPoint.ep.X, derivedPoint.ep.Y, derivedPoint.ep.Z, derivedPoint.ep.T)
-  return ed25519DerivedPoint.toBytes()
+  const ed25519DerivedPoint = normalize(derivedPoint)
+  return b4a.from(ed25519DerivedPoint.toBytes())
 }
 
 exports.validateKeyPair = function (keyPair) {
@@ -124,7 +148,7 @@ exports.validateKeyPair = function (keyPair) {
 
     const privateKeyScalar = ristretto255.Point.Fn.fromBytes(privateKey)
     const ristrettoPoint = ristretto255.Point.BASE.multiply(privateKeyScalar)
-    const ed25519Point = new ed25519.Point(ristrettoPoint.ep.X, ristrettoPoint.ep.Y, ristrettoPoint.ep.Z, ristrettoPoint.ep.T)
+    const ed25519Point = normalize(ristrettoPoint)
     const ed25519PublicKey = ed25519Point.toBytes()
     
     return b4a.equals(ed25519PublicKey, keyPair.publicKey)
@@ -139,7 +163,7 @@ exports.deriveSharedSecret = function (secretKey, publicKey) {
   const ed25519Point = ed25519.Point.fromBytes(publicKey)
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
   const sharedPoint = ristrettoPoint.multiply(privateScalar)
-  return sharedPoint.toBytes()
+  return b4a.from(sharedPoint.toBytes())
 }
 
 exports.sign = function (message, secretKey) {

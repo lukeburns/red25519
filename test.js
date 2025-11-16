@@ -2,11 +2,19 @@ const test = require('brittle')
 const b4a = require('b4a')
 const crypto = require('./')
 
+test('derive public key matches upgrade', function (t) {
+  const publicKey = b4a.from('00e1de09b98d1052af8f3fda02a0a7df9abaf7d5c6d1ac53528d5cb7c7e5678b', 'hex')
+  const secretKey = b4a.from('b34874c2fb5f6e3fc71b1e63356104d5db679a89c2378cf314eb8f92b1f9617300e1de09b98d1052af8f3fda02a0a7df9abaf7d5c6d1ac53528d5cb7c7e5678b', 'hex')
+  const upgradedPublicKey = crypto.upgradePublicKey(publicKey)
+  const upgradedKeyPair = crypto.upgrade(secretKey)
+  console.log(upgradedPublicKey.toString('hex'))
+  console.log(upgradedKeyPair.publicKey.toString('hex'))
+  t.ok(b4a.equals(upgradedPublicKey, upgradedKeyPair.publicKey))
+})
+
 test('upgrade', function (t) {
-  const secret = b4a.from('3cadb716898ad406951d5d31a1a3f66b0697c64a7ddae42685f13e2bb6971da06d54e8f0fc2d9d640619955d306426df90510e6e0ead6311b302963eee9bd5ff', 'hex')
-  console.log(secret.toString('hex'))
+  const secret = b4a.from('fe09664f812e27e43982ad43f69e68b99665733a3d65cb6a0ba853d3761aafa8e1e716536d45f8f29e8f3ae79a81e44d6a7f7d5dde58187663e33e352e2285f8', 'hex')
   const keyPair = crypto.upgrade(secret)
-  console.log(keyPair.secretKey.toString('hex'))
   t.is(keyPair.publicKey.length, 32)
   t.is(keyPair.secretKey.length, 64)
   t.is(keyPair.publicKey.buffer.byteLength, 96, 'small slab')
