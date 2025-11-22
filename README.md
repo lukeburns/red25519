@@ -45,4 +45,7 @@ console.log(b4a.equals(aliceBytes, bobBytes)) // true
 // Upgrade an existing ed25519 keypair
 const upgradedKeyPair = red25519.upgrade(ed25519SecretKey)
 console.log(red25519.validateKeyPair(upgradedKeyPair)) // true
+
+// Upgrade to the canonical ristretto representative of an ed25519 public key
+const upgradedPublicKey = red25519.upgradePublicKey(ed25519PublicKey)
 ```
