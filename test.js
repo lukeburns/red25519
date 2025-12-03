@@ -59,12 +59,19 @@ test('sign', function (t) {
 
 test('derive key pair', function (t) {
   const keyPair = crypto.keyPair()
-  const namespace = b4a.from('hello world')
+  const namespace = 'hello world'
   const derivedKeyPair = crypto.deriveKeyPair(keyPair.secretKey, namespace)
   t.ok(crypto.validateKeyPair({ publicKey: derivedKeyPair.publicKey, secretKey: derivedKeyPair.secretKey }))
 
   const derivedPublicKey = crypto.derivePublicKey(keyPair.publicKey, namespace)
   t.ok(b4a.equals(derivedPublicKey, derivedKeyPair.publicKey))
+
+  const namespaceHex = '68656c6c6f20776f726c64'
+  const derivedHexPair = crypto.deriveKeyPair(keyPair.secretKey, namespaceHex, 'hex')
+  const derivedHexPair2 = crypto.deriveKeyPair(keyPair.secretKey, namespaceHex, { encoding: 'hex' })
+  t.ok(b4a.equals(derivedHexPair.publicKey, derivedHexPair2.publicKey))
+  const derivedHexPublicKey = crypto.derivePublicKey(keyPair.publicKey, namespaceHex, 'hex')
+  t.ok(b4a.equals(derivedHexPublicKey, derivedHexPair.publicKey))
 })
 
 test('derive shared secret', function (t) {
@@ -73,4 +80,19 @@ test('derive shared secret', function (t) {
   const sharedSecret1 = crypto.deriveSharedSecret(keyPair1.secretKey, keyPair2.publicKey)
   const sharedSecret2 = crypto.deriveSharedSecret(keyPair2.secretKey, keyPair1.publicKey)
   t.ok(b4a.equals(sharedSecret1, sharedSecret2))
+})
+
+test('sign helpers and constants', function (t) {
+  t.is(crypto.PUBLIC_KEY_LENGTH, 32)
+  t.is(crypto.PRIVATE_KEY_LENGTH, 32)
+  t.is(crypto.SECRET_KEY_LENGTH, 64)
+  t.is(crypto.SIGNATURE_LENGTH, 64)
+  t.is(crypto.SHARED_SECRET_LENGTH, 32)
+
+  const keyPair = crypto.keyPair()
+  const message = b4a.from('helpers')
+  const sig = crypto.sign(message, keyPair.secretKey)
+  t.is(sig.length, crypto.SIGNATURE_LENGTH)
+  t.ok(b4a.equals(sig, crypto.signDetached(message, keyPair.secretKey)))
+  t.ok(b4a.equals(sig, crypto.signKeyPair(keyPair, message)))
 })
