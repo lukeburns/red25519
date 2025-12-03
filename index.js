@@ -167,6 +167,9 @@ exports.deriveSharedSecret = function (secretKey, publicKey) {
     const canonicalPublicKey = exports.upgradePublicKey(publicKey)
     const ed25519Point = ed25519.Point.fromBytes(canonicalPublicKey)
     const ristrettoPoint = new ristretto255.Point(ed25519Point)
+    if (ristrettoPoint.is0()) {
+      throw new Error('deriveSharedSecret: public key is torsion')
+    }
     sharedPoint = ristrettoPoint.multiply(privateScalar)
   } catch (err) {
     const error = new Error('deriveSharedSecret: invalid public key input')
