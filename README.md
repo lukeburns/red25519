@@ -64,7 +64,7 @@ console.log(red25519.SHARED_SECRET_LENGTH) // 32
 
 ## API
 
-This section follows the terse API style used in [`hypercore`](https://github.com/holepunchto/hypercore). All functions are synchronous and return `Uint8Array` instances (Node `Buffer`s) unless otherwise noted.
+All functions are synchronous and return `Uint8Array` instances (Node `Buffer`s) unless otherwise noted.
 
 #### `const keyPair = red25519.keyPair([seed])`
 
