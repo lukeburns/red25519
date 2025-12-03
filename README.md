@@ -46,15 +46,15 @@ const aliceBytes = red25519.deriveSharedSecret(alice.secretKey, bob.publicKey)
 const bobBytes = red25519.deriveSharedSecret(bob.secretKey, alice.publicKey)
 console.log(b4a.equals(aliceBytes, bobBytes)) // true
 
-// Upgrade an existing ed25519 keypair
-const upgradedKeyPair = red25519.upgrade(ed25519SecretKey)
-console.log(red25519.validateKeyPair(upgradedKeyPair)) // true
+// Normalize an existing ed25519 keypair
+const normalizedKeyPair = red25519.normalize(ed25519SecretKey)
+console.log(red25519.validateKeyPair(normalizedKeyPair)) // true
 
-// Upgrade to the canonical ristretto representative of an ed25519 public key
-const upgradedPublicKey = red25519.upgradePublicKey(ed25519PublicKey)
+// Normalize to the canonical ristretto representative of an ed25519 public key
+const normalizedPublicKey = red25519.normalizePublicKey(ed25519PublicKey)
 
-// Full key pair upgrade (alias: red25519.upgrade)
-const upgradedKeyPair = red25519.upgradeKeyPair(ed25519SecretKey)
+// Full key pair normalization
+const normalizedKeyPair2 = red25519.normalizeKeyPair(ed25519SecretKey)
 
 console.log(red25519.PUBLIC_KEY_LENGTH) // 32
 console.log(red25519.SECRET_KEY_LENGTH) // 64
@@ -82,11 +82,11 @@ Deterministically derives the namespaced public key using the same namespace rul
 
 Perform a ristretto Diffie-Hellman between a private scalar and a peer’s ed25519 public key. Returns the canonical 32-byte ristretto representative.
 
-#### `const keyPair = red25519.upgradeKeyPair(ed25519SecretKey)`
+#### `const keyPair = red25519.normalizeKeyPair(ed25519SecretKey)`
 
-Converts an ed25519 secret key (32-byte seed or 64-byte seed+public key) into a ristretto-backed key pair with the canonical ed25519 public key. Also exported as `red25519.upgrade`.
+Converts an ed25519 secret key (32-byte seed or 64-byte seed+public key) into a ristretto-backed key pair with the canonical ed25519 public key. Also exported as `red25519.normalize`.
 
-#### `const publicKey = red25519.upgradePublicKey(ed25519PublicKey)`
+#### `const publicKey = red25519.normalizePublicKey(ed25519PublicKey)`
 
 Re-encode an ed25519 public key as its canonical ristretto representative.
 
@@ -98,7 +98,7 @@ Checks that `keyPair.publicKey` matches the ristretto scalar stored in `keyPair.
 #### `const signature = red25519.signDetached(message, secretKey)`
 #### `const signature = red25519.signKeyPair(keyPair, message)`
 
-All helpers produce 64-byte ed25519-compatible signatures. `signDetached` is an alias for `sign`, while `signKeyPair` accepts the object returned from `keyPair`, `deriveKeyPair`, or `upgradeKeyPair`.
+All helpers produce 64-byte ed25519-compatible signatures. `signDetached` is an alias for `sign`, while `signKeyPair` accepts the object returned from `keyPair`, `deriveKeyPair`, or `normalizeKeyPair`.
 
 #### `const ok = red25519.verify(message, signature, publicKey)`
 

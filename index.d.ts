@@ -33,10 +33,10 @@ export function deriveSharedSecret(
   publicKey: ByteArray
 ): ByteArray;
 
-export function upgradeKeyPair(ed25519SecretKey: ByteArray): KeyPair;
-export { upgradeKeyPair as upgrade };
+export function normalizeKeyPair(ed25519SecretKey: ByteArray): KeyPair;
+export { normalizeKeyPair as normalize };
 
-export function upgradePublicKey(publicKey: ByteArray): ByteArray;
+export function normalizePublicKey(publicKey: ByteArray): ByteArray;
 
 export function validateKeyPair(keyPair: KeyPair): boolean;
 

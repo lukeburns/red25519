@@ -52,8 +52,8 @@ function readNamespaceInput(namespace, encodingOrOptions) {
   return toBytes(namespace, encoding || DEFAULT_NAMESPACE_ENCODING)
 }
 
-function upgradeKeyPair(ed25519SecretKey) {
-  // upgrade ed25519 secret key to ristretto255 key pair
+function normalizeKeyPair(ed25519SecretKey) {
+  // normalize ed25519 secret key to ristretto255 key pair
   // ed25519 key is a seed which is used to generate a private key via a clamping procedure
   // we are replacing this with a ristretto255 secret which is a true scalar and returning the canonical ristretto255 public key, which may differ from the ed25519 public key
   // If ed25519SecretKey is 64 bytes (seed + public key), use only the first 32 bytes (seed)
@@ -79,7 +79,7 @@ function upgradeKeyPair(ed25519SecretKey) {
   const privateKey = b4a.from(ristretto255.Point.Fn.toBytes(privateScalar))
   
   // Step 6: Generate ristretto255 point and convert to ed25519 public key
-  // Normalize to canonical representation (same as upgradePublicKey)
+  // Normalize to canonical representation (same as normalizePublicKey)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(privateScalar)
   const ed25519Point = normalize(ristrettoPoint)
   const ed25519PublicKey = ed25519Point.toBytes()
@@ -98,15 +98,15 @@ function upgradeKeyPair(ed25519SecretKey) {
   }
 }
 
-exports.upgradeKeyPair = upgradeKeyPair
-exports.upgrade = upgradeKeyPair
+exports.normalizeKeyPair = normalizeKeyPair
+exports.normalize = normalizeKeyPair
 
-exports.upgradePublicKey = function (publicKey) {
+exports.normalizePublicKey = function (publicKey) {
   const ed25519Point = ed25519.Point.fromBytes(publicKey)
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
   const ed25519Point2 = normalize(ristrettoPoint)
-  const upgradedPublicKey = ed25519Point2.toBytes()
-  return b4a.from(upgradedPublicKey)
+  const normalizedPublicKey = ed25519Point2.toBytes()
+  return b4a.from(normalizedPublicKey)
 }
 
 exports.keyPair = function (seed) {
