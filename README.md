@@ -116,6 +116,3 @@ Wrapper around `@noble/hashes` `randomBytes`.
 
 Numeric constants that describe the byte lengths of each primitive, useful for preallocating buffers.
 
-## TypeScript
-
-`red25519` ships a handcrafted `index.d.ts` file that documents the complete API surface, including namespace input overloads, helper functions, and exported constants.
