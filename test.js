@@ -74,3 +74,9 @@ test('derive shared secret', function (t) {
   const sharedSecret2 = crypto.deriveSharedSecret(keyPair2.secretKey, keyPair1.publicKey)
   t.ok(b4a.equals(sharedSecret1, sharedSecret2))
 })
+
+test('derive shared secret rejects invalid public key', function (t) {
+  const keyPair = crypto.keyPair()
+  const invalidPublicKey = b4a.alloc(31)
+  t.exception(() => crypto.deriveSharedSecret(keyPair.secretKey, invalidPublicKey))
+})
