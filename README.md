@@ -28,12 +28,16 @@ const signature = red25519.sign(message, alice.secretKey)
 // Verifies as a standard ed25519 signature
 console.log(red25519.verify(message, signature, alice.publicKey)) // true
 
+// Detached signing helpers
+const signature2 = red25519.signDetached(message, alice.secretKey)
+const signature3 = red25519.signKeyPair(alice, message)
+
 // Derive a namespaced keypair
-const namespace = b4a.from('blog')
-const derivedKeyPair = red25519.deriveKeyPair(alice.secretKey, namespace)
+const derivedKeyPair = red25519.deriveKeyPair(alice.secretKey, 'blog') // UTF-8 by default
+const derivedKeyPairHex = red25519.deriveKeyPair(alice.secretKey, '626c6f67', 'hex')
 
 // Derive a namespaced public key
-const derivedPublicKey = red25519.derivePublicKey(alice.publicKey, namespace)
+const derivedPublicKey = red25519.derivePublicKey(alice.publicKey, 'blog')
 console.log(b4a.equals(derivedPublicKey, derivedKeyPair.publicKey)) // true
 
 // Diffie-Hellman
@@ -48,4 +52,16 @@ console.log(red25519.validateKeyPair(upgradedKeyPair)) // true
 
 // Upgrade to the canonical ristretto representative of an ed25519 public key
 const upgradedPublicKey = red25519.upgradePublicKey(ed25519PublicKey)
+
+// Full key pair upgrade (alias: red25519.upgrade)
+const upgradedKeyPair = red25519.upgradeKeyPair(ed25519SecretKey)
+
+console.log(red25519.PUBLIC_KEY_LENGTH) // 32
+console.log(red25519.SECRET_KEY_LENGTH) // 64
+console.log(red25519.SIGNATURE_LENGTH) // 64
+console.log(red25519.SHARED_SECRET_LENGTH) // 32
 ```
+
+## TypeScript
+
+`red25519` ships a handcrafted `index.d.ts` file that documents the complete API surface, including namespace input overloads and helper functions.

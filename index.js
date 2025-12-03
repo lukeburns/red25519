@@ -4,6 +4,13 @@ const { sha512 } = require('@noble/hashes/sha2.js')
 const { concatBytes, randomBytes } = require('@noble/hashes/utils.js')
 const b4a = require('b4a')
 
+const PRIVATE_KEY_LENGTH = 32
+const PUBLIC_KEY_LENGTH = 32
+const SECRET_KEY_LENGTH = 64
+const SIGNATURE_LENGTH = 64
+const SHARED_SECRET_LENGTH = 32
+const DEFAULT_NAMESPACE_ENCODING = 'utf8'
+
 function modN_LE(hash) {
     return ed25519.Point.Fn.create(bytesToNumberLE(hash)) // Not Fn.fromBytes: it has length limit
 }
@@ -23,7 +30,29 @@ function normalize(ristrettoPoint) {
   )
 }
 
-exports.upgrade = function (ed25519SecretKey) {
+function toBytes(input, encoding = DEFAULT_NAMESPACE_ENCODING) {
+  if (typeof input === 'string') return b4a.from(input, encoding)
+  if (input instanceof Uint8Array) return input
+  if (ArrayBuffer.isView(input)) {
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
+  }
+  if (input instanceof ArrayBuffer) return new Uint8Array(input)
+  throw new TypeError('Expected string, Buffer, or Uint8Array input')
+}
+
+function readNamespaceInput(namespace, encodingOrOptions) {
+  if (namespace === undefined || namespace === null) {
+    throw new TypeError('Namespace input is required')
+  }
+
+  const encoding = typeof encodingOrOptions === 'string'
+    ? encodingOrOptions
+    : encodingOrOptions && encodingOrOptions.encoding
+
+  return toBytes(namespace, encoding || DEFAULT_NAMESPACE_ENCODING)
+}
+
+function upgradeKeyPair(ed25519SecretKey) {
   // upgrade ed25519 secret key to ristretto255 key pair
   // ed25519 key is a seed which is used to generate a private key via a clamping procedure
   // we are replacing this with a ristretto255 secret which is a true scalar and returning the canonical ristretto255 public key, which may differ from the ed25519 public key
@@ -69,6 +98,9 @@ exports.upgrade = function (ed25519SecretKey) {
   }
 }
 
+exports.upgradeKeyPair = upgradeKeyPair
+exports.upgrade = upgradeKeyPair
+
 exports.upgradePublicKey = function (publicKey) {
   const ed25519Point = ed25519.Point.fromBytes(publicKey)
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
@@ -109,10 +141,11 @@ exports.keyPair = function (seed) {
   }
 }
 
-exports.deriveKeyPair = function (secretKey, bytes) {
+exports.deriveKeyPair = function (secretKey, bytes, encodingOrOptions) {
+  const namespaceBytes = readNamespaceInput(bytes, encodingOrOptions)
   const privateKey = secretKey.subarray(0, 32)
   const privateScalar = ristretto255.Point.Fn.fromBytes(privateKey)
-  const bytesScalar = ristretto255_hasher.hashToScalar(bytes)
+  const bytesScalar = ristretto255_hasher.hashToScalar(namespaceBytes)
   const derivedScalar = ristretto255.Point.Fn.create(privateScalar * bytesScalar)
   const derivedBytes = ristretto255.Point.Fn.toBytes(derivedScalar)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(derivedScalar)
@@ -132,10 +165,11 @@ exports.deriveKeyPair = function (secretKey, bytes) {
   }
 }
 
-exports.derivePublicKey = function (publicKey, bytes) {
+exports.derivePublicKey = function (publicKey, bytes, encodingOrOptions) {
+  const namespaceBytes = readNamespaceInput(bytes, encodingOrOptions)
   const ed25519Point = ed25519.Point.fromBytes(publicKey)
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
-  const bytesScalar = ristretto255_hasher.hashToScalar(bytes)
+  const bytesScalar = ristretto255_hasher.hashToScalar(namespaceBytes)
   const derivedPoint = ristrettoPoint.multiply(bytesScalar)
   const ed25519DerivedPoint = normalize(derivedPoint)
   return b4a.from(ed25519DerivedPoint.toBytes())
@@ -183,3 +217,17 @@ exports.verify = function (message, signature, publicKey) {
 }
 
 exports.randomBytes = randomBytes
+exports.signDetached = function (message, secretKey) {
+  return exports.sign(message, secretKey)
+}
+
+exports.signKeyPair = function (keyPair, message) {
+  if (!keyPair || !keyPair.secretKey) throw new TypeError('signKeyPair requires a key pair with a secretKey')
+  return exports.sign(message, keyPair.secretKey)
+}
+
+exports.PUBLIC_KEY_LENGTH = PUBLIC_KEY_LENGTH
+exports.PRIVATE_KEY_LENGTH = PRIVATE_KEY_LENGTH
+exports.SECRET_KEY_LENGTH = SECRET_KEY_LENGTH
+exports.SIGNATURE_LENGTH = SIGNATURE_LENGTH
+exports.SHARED_SECRET_LENGTH = SHARED_SECRET_LENGTH
