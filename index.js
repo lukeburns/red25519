@@ -9,7 +9,9 @@ function modN_LE(hash) {
 }
 
 function hashDomainToScalar(...msgs) {
-    return modN_LE(sha512(concatBytes(...msgs)))
+    const hasher = sha512.create()
+    for (const msg of msgs) hasher.update(msg)
+    return modN_LE(hasher.digest())
 }
 
 function normalize(ristrettoPoint) {
