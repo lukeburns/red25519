@@ -160,9 +160,23 @@ exports.validateKeyPair = function (keyPair) {
 exports.deriveSharedSecret = function (secretKey, publicKey) {
   const privateKey = secretKey.subarray(0, 32)
   const privateScalar = ristretto255.Point.Fn.fromBytes(privateKey)
-  const ed25519Point = ed25519.Point.fromBytes(publicKey)
-  const ristrettoPoint = new ristretto255.Point(ed25519Point)
-  const sharedPoint = ristrettoPoint.multiply(privateScalar)
+
+  let sharedPoint
+  try {
+    // Normalize and validate the peer key to its canonical ristretto representative
+    const canonicalPublicKey = exports.upgradePublicKey(publicKey)
+    const ed25519Point = ed25519.Point.fromBytes(canonicalPublicKey)
+    const ristrettoPoint = new ristretto255.Point(ed25519Point)
+    if (ristrettoPoint.is0()) {
+      throw new Error('deriveSharedSecret: public key is torsion')
+    }
+    sharedPoint = ristrettoPoint.multiply(privateScalar)
+  } catch (err) {
+    const error = new Error('deriveSharedSecret: invalid public key input')
+    error.cause = err
+    throw error
+  }
+
   return b4a.from(sharedPoint.toBytes())
 }
 

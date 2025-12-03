@@ -1,6 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
 const crypto = require('./')
+const { ED25519_TORSION_SUBGROUP } = require('@noble/curves/ed25519.js')
 
 test('derive public key matches upgrade', function (t) {
   const publicKey = b4a.from('00e1de09b98d1052af8f3fda02a0a7df9abaf7d5c6d1ac53528d5cb7c7e5678b', 'hex')
@@ -73,4 +74,16 @@ test('derive shared secret', function (t) {
   const sharedSecret1 = crypto.deriveSharedSecret(keyPair1.secretKey, keyPair2.publicKey)
   const sharedSecret2 = crypto.deriveSharedSecret(keyPair2.secretKey, keyPair1.publicKey)
   t.ok(b4a.equals(sharedSecret1, sharedSecret2))
+})
+
+test('derive shared secret rejects invalid public key', function (t) {
+  const keyPair = crypto.keyPair()
+  const invalidPublicKey = b4a.alloc(31)
+  t.exception(() => crypto.deriveSharedSecret(keyPair.secretKey, invalidPublicKey))
+})
+
+test('derive shared secret rejects torsion public key', function (t) {
+  const keyPair = crypto.keyPair()
+  const torsionPublicKey = b4a.from(ED25519_TORSION_SUBGROUP[1], 'hex')
+  t.exception(() => crypto.deriveSharedSecret(keyPair.secretKey, torsionPublicKey))
 })
