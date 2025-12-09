@@ -112,8 +112,16 @@ exports.keyPair = function (seed) {
 exports.deriveKeyPair = function (secretKey, bytes) {
   const privateKey = secretKey.subarray(0, 32)
   const privateScalar = ristretto255.Point.Fn.fromBytes(privateKey)
-  const bytesScalar = ristretto255_hasher.hashToScalar(bytes)
-  const derivedScalar = ristretto255.Point.Fn.create(privateScalar * bytesScalar)
+  
+  // If no bytes provided, just derive the associated keypair from the scalar
+  let derivedScalar
+  if (!bytes || bytes.byteLength === 0) {
+    derivedScalar = privateScalar
+  } else {
+    const bytesScalar = ristretto255_hasher.hashToScalar(bytes)
+    derivedScalar = ristretto255.Point.Fn.create(privateScalar * bytesScalar)
+  }
+  
   const derivedBytes = ristretto255.Point.Fn.toBytes(derivedScalar)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(derivedScalar)
   const ed25519Point = normalize(ristrettoPoint)

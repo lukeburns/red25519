@@ -1,6 +1,6 @@
 {
   "name": "red25519",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "ed25519 signatures in ristretto",
   "license": "MIT",
   "author": "Luke Burns (@lukeburns)",

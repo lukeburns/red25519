@@ -67,6 +67,23 @@ test('derive key pair', function (t) {
   t.ok(b4a.equals(derivedPublicKey, derivedKeyPair.publicKey))
 })
 
+test('derive key pair with no bytes returns associated keypair', function (t) {
+  const keyPair = crypto.keyPair()
+  
+  const associatedKeyPair = crypto.deriveKeyPair(keyPair.secretKey)
+  t.ok(crypto.validateKeyPair({ publicKey: associatedKeyPair.publicKey, secretKey: associatedKeyPair.secretKey }))
+  t.ok(b4a.equals(associatedKeyPair.publicKey, keyPair.publicKey))
+  t.ok(b4a.equals(associatedKeyPair.secretKey, keyPair.secretKey))
+  
+  const associatedKeyPair2 = crypto.deriveKeyPair(keyPair.secretKey, b4a.alloc(0))
+  t.ok(b4a.equals(associatedKeyPair2.publicKey, keyPair.publicKey))
+  t.ok(b4a.equals(associatedKeyPair2.secretKey, keyPair.secretKey))
+  
+  const associatedKeyPair3 = crypto.deriveKeyPair(keyPair.secretKey, undefined)
+  t.ok(b4a.equals(associatedKeyPair3.publicKey, keyPair.publicKey))
+  t.ok(b4a.equals(associatedKeyPair3.secretKey, keyPair.secretKey))
+})
+
 test('derive shared secret', function (t) {
   const keyPair1 = crypto.keyPair()
   const keyPair2 = crypto.keyPair()
