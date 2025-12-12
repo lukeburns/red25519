@@ -1,6 +1,6 @@
 {
   "name": "red25519",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "ed25519 signatures in ristretto",
   "license": "MIT",
   "author": "Luke Burns (@lukeburns)",
@@ -11,8 +11,7 @@
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
-    "@noble/hashes": "^2.0.1",
-    "sodium-javascript": "^0.8.0"
+    "@noble/hashes": "^2.0.1"
   },
   "devDependencies": {
     "brittle": "^3.19.0",
