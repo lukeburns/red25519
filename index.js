@@ -1,61 +1,48 @@
 const { ed25519, ristretto255, ristretto255_hasher } = require('@noble/curves/ed25519.js')
 const { bytesToNumberLE } = require('@noble/curves/utils.js')
+const { mod, invert, Field } = require('@noble/curves/abstract/modular.js');
 const { sha512 } = require('@noble/hashes/sha2.js')
 const { concatBytes, randomBytes } = require('@noble/hashes/utils.js')
 const b4a = require('b4a')
 
 function modN_LE(hash) {
-    return ed25519.Point.Fn.create(bytesToNumberLE(hash)) // Not Fn.fromBytes: it has length limit
+    return ed25519.Point.Fn.create(bytesToNumberLE(hash))
 }
 
 function hashDomainToScalar(...msgs) {
     return modN_LE(sha512(concatBytes(...msgs)))
 }
 
-function normalize(ristrettoPoint) {
-  const ristrettoPointBytes = ristrettoPoint.toBytes()
-  const ristrettoPointFromBytes = ristretto255.Point.fromBytes(ristrettoPointBytes)
-  return new ed25519.Point(
-    ristrettoPointFromBytes.ep.X,
-    ristrettoPointFromBytes.ep.Y,
-    ristrettoPointFromBytes.ep.Z,
-    ristrettoPointFromBytes.ep.T
-  )
+const L = ed25519.Point.Fn.ORDER;
+const INV_8 = mod(invert(8n, L), L);
+
+function normalize(point) {
+  if (point.ep) point = point.ep
+  return point.multiply(8n).multiply(INV_8)
 }
 
-exports.upgrade = function (ed25519SecretKey) {
-  // upgrade ed25519 secret key to ristretto255 key pair
-  // ed25519 key is a seed which is used to generate a private key via a clamping procedure
-  // we are replacing this with a ristretto255 secret which is a true scalar and returning the canonical ristretto255 public key, which may differ from the ed25519 public key
-  // If ed25519SecretKey is 64 bytes (seed + public key), use only the first 32 bytes (seed)
-  
-  // Step 1: Extract seed (first 32 bytes) if secret key is 64 bytes
+exports.upgradeKeyPair = function (ed25519SecretKey) {
+  if (ed25519SecretKey && ed25519SecretKey.secretKey) {
+    ed25519SecretKey = ed25519SecretKey.secretKey
+  }
+
   const seed = ed25519SecretKey.length === 64 ? ed25519SecretKey.subarray(0, 32) : ed25519SecretKey
   
-  // Step 2: Hash the ed25519 seed using SHA-512 to get 64-byte digest
   const hash = sha512(seed)
+  const h_L = hash.subarray(0, 32)
   
-  // Step 3: Split hash into two 32-byte halves
-  const h_L = hash.subarray(0, 32)  // First 32 bytes
-  const h_R = hash.subarray(32, 64) // Last 32 bytes
-  
-  // Step 4: Apply clamping procedure to h_L to get the private scalar
   const clamped = new Uint8Array(h_L)
-  clamped[0] &= 248  // Clear the lowest three bits of the first byte
-  clamped[31] &= 127 // Clear the highest bit of the last byte
-  clamped[31] |= 64  // Set the second highest bit of the last byte
+  clamped[0] &= 248
+  clamped[31] &= 127
+  clamped[31] |= 64
   
-  // Step 5: Convert clamped bytes to ristretto255 private scalar
   const privateScalar = ristretto255.Point.Fn.create(bytesToNumberLE(clamped))
   const privateKey = b4a.from(ristretto255.Point.Fn.toBytes(privateScalar))
   
-  // Step 6: Generate ristretto255 point and convert to ed25519 public key
-  // Normalize to canonical representation (same as upgradePublicKey)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(privateScalar)
   const ed25519Point = normalize(ristrettoPoint)
   const ed25519PublicKey = ed25519Point.toBytes()
 
-  // Step 7: Create key pair structure
   const slab = b4a.allocUnsafeSlow(32 + 64)
   const publicKeyBuffer = slab.subarray(0, 32)
   const secretKeyBuffer = slab.subarray(32)
@@ -69,6 +56,8 @@ exports.upgrade = function (ed25519SecretKey) {
   }
 }
 
+exports.upgrade = exports.upgradeKeyPair
+
 exports.upgradePublicKey = function (publicKey) {
   const ed25519Point = ed25519.Point.fromBytes(publicKey)
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
@@ -77,20 +66,19 @@ exports.upgradePublicKey = function (publicKey) {
   return b4a.from(upgradedPublicKey)
 }
 
+exports.normalize = exports.upgradePublicKey
+
 exports.keyPair = function (seed) {
   let privateKey
 
-  if (seed) {
-    // Use seed to generate deterministic private key
+  if (b4a.isBuffer(seed) || typeof seed === 'string') {
     const scalar = ristretto255_hasher.hashToScalar(seed)
     privateKey = b4a.from(ristretto255.Point.Fn.toBytes(scalar))
   } else {
-    // Generate random private key using ristretto255 scalar generation
     const scalar = ristretto255_hasher.hashToScalar(randomBytes(32))
     privateKey = b4a.from(ristretto255.Point.Fn.toBytes(scalar))
   }
 
-  // Derive public key using ristretto255
   const privateKeyScalar = ristretto255.Point.Fn.fromBytes(privateKey)
   const ristrettoPoint = ristretto255.Point.BASE.multiply(privateKeyScalar)
   const ed25519Point = normalize(ristrettoPoint)
@@ -104,8 +92,8 @@ exports.keyPair = function (seed) {
   secretKeyBuffer.set(publicKeyBuffer, 32, 32)
 
   return {
-    publicKey: publicKeyBuffer, // edwards curve public key
-    secretKey: secretKeyBuffer // ristretto255 private key
+    publicKey: publicKeyBuffer,
+    secretKey: secretKeyBuffer
   }
 }
 
@@ -113,7 +101,6 @@ exports.deriveKeyPair = function (secretKey, bytes) {
   const privateKey = secretKey.subarray(0, 32)
   const privateScalar = ristretto255.Point.Fn.fromBytes(privateKey)
   
-  // If no bytes provided, just derive the associated keypair from the scalar
   let derivedScalar
   if (!bytes || bytes.byteLength === 0) {
     derivedScalar = privateScalar
@@ -169,9 +156,12 @@ exports.deriveSharedSecret = function (secretKey, publicKey) {
   const privateKey = secretKey.subarray(0, 32)
   const privateScalar = ristretto255.Point.Fn.fromBytes(privateKey)
   const ed25519Point = ed25519.Point.fromBytes(publicKey)
+  if (ed25519Point.isSmallOrder()) throw new Error('invalid DH: small public key')
   const ristrettoPoint = new ristretto255.Point(ed25519Point)
   const sharedPoint = ristrettoPoint.multiply(privateScalar)
-  return b4a.from(sharedPoint.toBytes())
+  const normalizedPoint = normalize(sharedPoint)
+  if (normalizedPoint.is0()) throw new Error('invalid DH: identity shared secret')
+  return b4a.from(normalizedPoint.toBytes())
 }
 
 exports.sign = function (message, secretKey) {
